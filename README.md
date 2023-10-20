@@ -1,0 +1,3 @@
+```python
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 train.py
+```
