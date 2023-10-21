@@ -13,7 +13,8 @@ class TextDataset(Dataset) :
         self.sample_size = sample_size
         self.x = load_data(get_input_data_dir(dataset , f'{dataset_prefix}.txt'))
         self.y = load_data(get_input_data_dir(dataset , f'{dataset_prefix}_labels.txt'))
-        self.augment_x = augment_data(self.x)
+        self.label_names = load_data(get_input_data_dir(dataset , f'label_names.txt'))
+        # self.augment_x = augment_data(self.x)
         self.shuffle_array = np.arange(len(self.x))
         np.random.shuffle(self.shuffle_array)
 
@@ -22,7 +23,7 @@ class TextDataset(Dataset) :
 
     def __getitem__(self, idx) :
         self.idx = self.shuffle_array[idx]
-        return self.augment_x[self.idx] , self.y[self.idx]
+        return self.x[self.idx] , int(self.y[self.idx]) , self.label_names[int(self.y[self.idx])]
 
 
 def load_data(text_path, encoding='utf-8'):
@@ -55,7 +56,6 @@ def sample_data(dataset : str , sample_size=10000):
     train_data_loader = DataLoader(train_set , batch_size=32 , shuffle=True)
     return train_data_loader
 
-
 def make_prompt(text, instruction):
 
     words = text.split()
@@ -77,18 +77,16 @@ def make_prompt(text, instruction):
 def augment_data(data : list , batch_size=32) -> np.array :
     # with torch.cuda.amp.autocast():
     # data = np.array(data)
-    model_name = 'alpaca-native'
-    model = load_model(model_name)
-    tokenizer = load_tokenizer(model_name)
-    # tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-    import pdb
-    pdb.set_trace()
+    gpt_model_name = 'chavinlo/alpaca-native' # this mode is too large for me , not use this augment_data method
+    gpt_model = load_model(gpt_model_name)
+    gpt_tokenizer = load_tokenizer(gpt_model_name)
+    # import pdb
+    # pdb.set_trace()
     for i in tqdm(range(0 , len(data) , batch_size)) :
-        inputs = tokenizer(data[i:i + batch_size] , return_tensors='pt' , padding='max_length', truncation=True , max_length=64)
+        inputs = gpt_tokenizer(data[i:i + batch_size] , return_tensors='pt' , padding='max_length', truncation=True , max_length=64)
         seq_len = inputs['input_ids'].shape
-        # gpt(inputs , num_return_sequences=3, no_repeat_ngram_size=2, top_k=50)
-        output_ids = model.generate(inputs , max_length= 64 + seq_len[1], min_length= 16 + seq_len[1], num_return_sequences=3, no_repeat_ngram_size=2, top_k=50)
+        output_ids = gpt_model.generate(inputs , max_length= 64 + seq_len[1], min_length= 16 + seq_len[1], num_return_sequences=3, no_repeat_ngram_size=2, top_k=50)
         output_ids = output_ids[: , seq_len:]
-        gen_text = tokenizer.batch_decode(output_ids , skip_special_tokens=True)
+        gen_text = gpt_tokenizer.batch_decode(output_ids , skip_special_tokens=True)
 
         print(output_ids)

@@ -1,8 +1,8 @@
 import os
 
-base_dir = '/home/share/sunkaikai'
+base_dir = os.getenv('base_dir')
 
-data_dir = f'{base_dir}/data'
+data_dir = f'{base_dir}/dataset'
 
 models = f'{base_dir}/models'
 
