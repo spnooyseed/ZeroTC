@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
-from utils.data_utils import set_seed , sample_data , augment_data
-from utils.model_utils import load_model , load_tokenizer , train
+from utils.data_utils import set_seed , sample_data  , load_data , get_input_data_dir
+from utils.model_utils import ZeroTC
+from utils.train_utils import train
 
 def main() :
     parser = ArgumentParser()
@@ -9,9 +10,9 @@ def main() :
     args = parser.parse_args()
     set_seed()
     train_data = sample_data(args.dataset , 200)
-    simcse_encoder = load_model(args.encoder_name)
-    simcse_tokenizer = load_tokenizer(args.encoder_name)
-    train(simcse_encoder , simcse_tokenizer , train_data)
+    label_names = load_data(get_input_data_dir(args.dataset , f'label_names.txt'))
+    model = ZeroTC('sup-simcse-roberta-base')
+    train(model , train_data , label_names)
 
 if __name__ == '__main__' :
     main()

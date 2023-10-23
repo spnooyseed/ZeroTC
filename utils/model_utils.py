@@ -7,7 +7,7 @@ from transformers import (
     AutoModel
 )
 from .config import models
-
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -28,6 +28,36 @@ class ContrastiveLoss(nn.Module):
         return loss_contrastive
 
 
+class ZeroTC(nn.Module) :
+    def __init__(self , model_name , num_class=4 , hidden_size=768) :
+        super(ZeroTC , self).__init__()
+        # import pdb
+        # pdb.set_trace()
+        self.encoder = load_model(model_name)
+        self.tokenizer = load_tokenizer(model_name)
+        self.fc = nn.Linear(hidden_size , num_class)
+        self.max_text_length = 128
+
+    def contrastive_loss(self, embed1, embed2, target, mask=None, clip_prob=None):
+        logits = self.sim(embed1, embed2)
+        if mask is not None:
+            logits = logits.masked_fill(mask, float('-inf'))
+        log_prob = F.log_softmax(logits, dim=-1)
+        if mask is not None:
+            return -log_prob[target.bool()].mean() 
+        mean_log_prob_pos = (target * log_prob).sum(1) / (target.sum(1)+1e-10)
+        return -mean_log_prob_pos.mean()
+
+    def forward(self , text1) :
+        # import pdb
+        # pdb.set_trace()
+        text1_inputs = self.tokenizer(text1, return_tensors="pt", padding=True, truncation=True , max_length=self.max_text_length)
+        # text2_inputs = self.tokenizer(text2, return_tensors="pt", padding=True, truncation=True, return_special_tokens_mask=True)
+        text1_embedding = self.encoder(**text1_inputs).pooler_output
+        # text2_embedding = self.encoder(**text2_inputs).last_hidden_state
+        return text1_embedding
+
+
 # only read offline model due to interest
 def load_model(model_name) :
 
@@ -45,34 +75,3 @@ def load_model(model_name) :
 def load_tokenizer(model_name) :
     path = f'{models}/{model_name}'
     return AutoTokenizer.from_pretrained(path , cache_dir=path)
-
-
-def train(simcse_encoder , simcse_tokenizer , train_data) :
-
-    # 定义损失函数和优化器
-    contrastive_loss = ContrastiveLoss()
-    optimizer = torch.optim.Adam(simcse_encoder.parameters(), lr=0.001)
-
-    # 进行自训练循环
-    simcse_encoder.train()
-    epochs = 10
-
-    for epoch in range(epochs):
-        for data , label , label_name  in tqdm(train_data):
-            print(data)
-            print(label)
-            print(label_name)
-            inputs1 = simcse_tokenizer(data, return_tensors="pt", padding=True, truncation=True)
-            embeddings1 = simcse_encoder(**inputs1).last_hidden_state
-            inputs2 = simcse_tokenizer(label_name, return_tensors="pt", padding=True, truncation=True)
-            embeddings2 = simcse_encoder(**inputs2).last_hidden_state
-            embeddings1 = embeddings1.mean(dim = 1)
-            embeddings2 = embeddings2.mean(dim = 1)
-            # 根据嵌入计算对比损失并进行反向传播
-            # import pdb
-            # pdb.set_trace()
-            print('test')
-            loss = contrastive_loss(embeddings1, embeddings2, label)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()

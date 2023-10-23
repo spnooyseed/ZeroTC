@@ -23,8 +23,18 @@ class TextDataset(Dataset) :
 
     def __getitem__(self, idx) :
         self.idx = self.shuffle_array[idx]
-        return self.x[self.idx] , int(self.y[self.idx]) , self.label_names[int(self.y[self.idx])]
+        return self.x[self.idx] , int(self.y[self.idx])
 
+class PseudoLabelDataset(Dataset):
+    def __init__(self , dataset , pseudo_label):
+        super(PseudoLabelDataset , self).__init__()
+        self.dataset = dataset
+        self.pseudo_label = pseudo_label
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        return self.dataset[index] , self.pseudo_label[index]
 
 def load_data(text_path, encoding='utf-8'):
 
